@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deal or No Deal 💼</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+SC:wght@400;700;900&display=swap');
+
+  :root {
+    --gold: #FFD700;
+    --gold-dark: #B8860B;
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --text: #f0e8d0;
+    --muted: #888;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255,215,0,0.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 80% 60%, rgba(255,215,0,0.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 90%, rgba(255,215,0,0.15) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  header {
+    text-align: center;
+    padding: 24px 16px 8px;
+    position: relative;
+    z-index: 1;
+  }
+
+  header h1 {
+    font-family: 'Bebas Neue', cursive;
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    letter-spacing: 0.08em;
+    background: linear-gradient(135deg, #FFD700, #FFF8DC, #B8860B);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+  }
+
+  header p {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 4px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  #game {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 12px 12px 40px;
+    position: relative;
+    z-index: 1;
+  }
+
+  #money-board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    background: var(--panel);
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .money-item {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+    transition: all 0.4s ease;
+    border: 1px solid transparent;
+  }
+
+  .money-item.low { background: #1a1a2e; color: #aaa; border-color: #2a2a3a; }
+  .money-item.high { background: #1a2a1a; color: #5dff90; border-color: #2a4a2a; }
+  .money-item.eliminated {
+    background: #111 !important;
+    color: #333 !important;
+    border-color: #1a1a1a !important;
+    text-decoration: line-through;
+    opacity: 0.4;
+  }
+
+  @keyframes flashBad { 30% { background: #660000; transform: scale(1.05); } }
+  @keyframes flashGood { 30% { background: #006600; transform: scale(1.05); } }
+  .flash-bad { animation: flashBad 0.6s ease; }
+  .flash-good { animation: flashGood 0.6s ease; }
+
+  #boxes-section { margin-bottom: 16px; }
+  #boxes-section h2 {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.1em;
+    color: var(--gold);
+    font-size: 1.2rem;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  #boxes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 8px;
+  }
+
+  .box {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 1.1rem;
+    transition: all 0.2s ease;
+    border: 2px solid;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .box.available {
+    background: linear-gradient(135deg, #1e1e2e, #2a2a3e);
+    border-color: #FFD700;
+    color: var(--gold);
+    box-shadow: 0 0 12px rgba(255,215,0,0.2);
+    cursor: pointer;
+  }
+  .box.available:hover {
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(255,215,0,0.4);
+    border-color: #fff8dc;
+  }
+  .box.selected {
+    background: linear-gradient(135deg, #7a0000, #cc0000);
+    border-color: #ff4444;
+    color: white;
+    cursor: default;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 20px rgba(204,0,0,0.5); }
+    50% { box-shadow: 0 0 30px rgba(204,0,0,0.8); }
+  }
+  .box.opened {
+    background: #111;
+    border-color: #222;
+    cursor: default;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  .box .box-num { font-size: 1.2rem; }
+  .selected-tag {
+    font-size: 0.55rem;
+    background: rgba(255,255,255,0.15);
+    padding: 2px 5px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  #status-panel {
+    background: var(--panel);
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  #status-panel .round-info {
+    font-family: 'Bebas Neue', cursive;
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  #status-panel .message {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+    min-height: 1.4em;
+  }
+
+  #offer-panel {
+    background: linear-gradient(135deg, #1a1200, #2a2000);
+    border: 2px solid var(--gold-dark);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    text-align: center;
+    display: none;
+  }
+  #offer-panel.visible { display: block; animation: slideIn 0.5s ease; }
+  @keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  #offer-panel .banker-label {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+  #offer-panel .offer-amount {
+    font-family: 'Bebas Neue', cursive;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    background: linear-gradient(135deg, #FFD700, #FFF8DC);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.05em;
+    margin: 4px 0;
+  }
+  #offer-panel .offer-context {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-bottom: 16px;
+  }
+
+  .btn-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.15em;
+    font-size: 1.3rem;
+    padding: 12px 32px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .btn-deal { background: linear-gradient(135deg, #00aa44, #00cc55); color: white; box-shadow: 0 4px 15px rgba(0,170,68,0.4); }
+  .btn-deal:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,170,68,0.6); }
+  .btn-nodeal { background: linear-gradient(135deg, #cc0000, #ff2200); color: white; box-shadow: 0 4px 15px rgba(204,0,0,0.4); }
+  .btn-nodeal:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(204,0,0,0.6); }
+
+  #result-panel {
+    display: none;
+    background: var(--panel);
+    border: 2px solid var(--gold-dark);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  #result-panel.visible { display: block; animation: slideIn 0.5s ease; }
+  #result-panel h2 { font-family: 'Bebas Neue', cursive; font-size: 2rem; letter-spacing: 0.1em; margin-bottom: 8px; }
+  #result-panel .result-amount {
+    font-family: 'Bebas Neue', cursive;
+    font-size: clamp(2.5rem, 10vw, 5rem);
+    background: linear-gradient(135deg, #FFD700, #FFF8DC, #B8860B);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    margin: 8px 0;
+  }
+  #result-panel .result-sub { color: var(--muted); font-size: 0.9rem; margin-top: 8px; }
+
+  .btn-restart {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.15em;
+    font-size: 1.2rem;
+    padding: 10px 28px;
+    background: linear-gradient(135deg, #333, #555);
+    color: var(--gold);
+    border: 1px solid var(--gold-dark);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 16px;
+    transition: all 0.2s;
+  }
+  .btn-restart:hover { background: linear-gradient(135deg, #444, #666); transform: translateY(-2px); }
+
+  #log {
+    background: var(--panel);
+    border: 1px solid #2a2a3a;
+    border-radius: 12px;
+    padding: 12px;
+    max-height: 160px;
+    overflow-y: auto;
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  #log .log-entry { border-bottom: 1px solid #1a1a2a; padding: 2px 0; }
+  #log .log-entry:last-child { border-bottom: none; }
+  #log .log-gold { color: var(--gold); }
+  #log .log-red { color: #ff6666; }
+  #log .log-green { color: #66ff99; }
+  #log::-webkit-scrollbar { width: 4px; }
+  #log::-webkit-scrollbar-track { background: #111; }
+  #log::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  #intro { text-align: center; padding: 20px; }
+  #intro h2 { font-family: 'Bebas Neue', cursive; font-size: 1.8rem; color: var(--gold); letter-spacing: 0.1em; margin-bottom: 12px; }
+  #intro p { color: var(--muted); font-size: 0.9rem; line-height: 1.8; margin-bottom: 16px; }
+
+  .btn-start {
+    font-family: 'Bebas Neue', cursive;
+    letter-spacing: 0.2em;
+    font-size: 1.6rem;
+    padding: 16px 48px;
+    background: linear-gradient(135deg, #B8860B, #FFD700, #B8860B);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,215,0,0.4);
+    transition: all 0.2s;
+  }
+  .btn-start:hover { transform: translateY(-3px) scale(1.03); box-shadow: 0 8px 30px rgba(255,215,0,0.6); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>💼 Deal or No Deal</h1>
+  <p>开箱有礼 · 百万挑战</p>
+</header>
+
+<div id="game">
+  <div id="intro">
+    <h2>游戏规则</h2>
+    <p>
+      26个箱子，奖金从 $0.01 到 $1,000,000<br>
+      先选一个箱子留着，然后逐轮开其他箱子<br>
+      每轮结束后庄家出价，你来决定：<br>
+      <strong style="color:var(--gold)">Deal（接受）还是 No Deal（继续）？</strong>
+    </p>
+    <button class="btn-start" onclick="startGame()">开始游戏</button>
+  </div>
+
+  <div id="main-game" style="display:none">
+    <div style="display:grid; grid-template-columns: 200px 1fr; gap:12px; align-items:start">
+      <div id="money-board"></div>
+      <div>
+        <div id="status-panel">
+          <div class="round-info" id="round-info">选择阶段</div>
+          <div class="message" id="message">请从26个箱子中选一个属于你的！</div>
+        </div>
+        <div id="boxes-section">
+          <h2 id="boxes-title">📦 选择你的箱子</h2>
+          <div id="boxes-grid"></div>
+        </div>
+        <div id="offer-panel">
+          <div class="banker-label">📞 庄家报价</div>
+          <div class="offer-amount" id="offer-amount">$0</div>
+          <div class="offer-context" id="offer-context"></div>
+          <div class="btn-row">
+            <button class="btn btn-deal" id="btn-deal">✅ DEAL</button>
+            <button class="btn btn-nodeal" id="btn-nodeal">❌ NO DEAL</button>
+          </div>
+        </div>
+        <div id="result-panel">
+          <h2 id="result-title">🎉 恭喜！</h2>
+          <div class="result-amount" id="result-amount">$0</div>
+          <div class="result-sub" id="result-sub"></div>
+          <button class="btn-restart" onclick="restartGame()">🔄 再来一局</button>
+        </div>
+        <div id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 音效系统 ──────────────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function getAudio() {
+  if (!audioCtx) {
+    audioCtx = new AudioCtx();
+  }
+  // iOS需要resume
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+// 页面任意点击时解锁音频
+document.addEventListener('click', () => {
+  if (!audioCtx) {
+    audioCtx = new AudioCtx();
+  }
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}, { once: false });
+
+// 8-bit 基础发音：方波+音量包络
+function bit8(freq, duration, vol = 0.18, slide = 0) {
+  try {
+    const ctx = getAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (slide) osc.frequency.linearRampToValueAtTime(slide, ctx.currentTime + duration);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.setValueAtTime(vol, ctx.currentTime + duration * 0.7);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration + 0.01);
+  } catch(e) {}
+}
+
+// 8-bit 噪音（鼓）
+function bit8Noise(duration, vol = 0.15) {
+  try {
+    const ctx = getAudio();
+    if (ctx.state === 'suspended') ctx.resume();
+    const buf = ctx.createBuffer(1, ctx.sampleRate * duration, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 3);
+    }
+    const src = ctx.createBufferSource();
+    const gain = ctx.createGain();
+    src.buffer = buf;
+    src.connect(gain);
+    gain.connect(ctx.destination);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    src.start();
+  } catch(e) {}
+}
+
+// 选箱子：8-bit选中音
+function soundClick() {
+  bit8(440, 0.06);
+  setTimeout(() => bit8(880, 0.08), 60);
+}
+
+// 开出小金额：上升欢快音阶
+function soundOpenLow() {
+  const notes = [262, 330, 392];
+  notes.forEach((f, i) => setTimeout(() => bit8(f, 0.08), i * 60));
+}
+
+// 开出大金额：8-bit下坠警报
+function soundOpenHigh() {
+  bit8(440, 0.06);
+  setTimeout(() => bit8(370, 0.06), 60);
+  setTimeout(() => bit8(311, 0.06), 120);
+  setTimeout(() => bit8(220, 0.15), 180);
+  setTimeout(() => bit8Noise(0.1, 0.2), 200);
+}
+
+// 庄家电话：经典8-bit电话铃
+function soundPhone() {
+  const ring = () => {
+    bit8(880, 0.1);
+    setTimeout(() => bit8(660, 0.1), 110);
+  };
+  ring();
+  setTimeout(ring, 280);
+  setTimeout(ring, 560);
+}
+
+// Deal！胜利旋律（超级马里奥风）
+function soundDeal() {
+  const seq = [
+    [523, 0], [659, 80], [784, 160], [523, 240],
+    [659, 320], [784, 400], [1047, 520]
+  ];
+  seq.forEach(([f, t]) => setTimeout(() => bit8(f, 0.12, 0.2), t));
+}
+
+// No Deal！失败音
+function soundNoDeal() {
+  bit8(330, 0.08);
+  setTimeout(() => bit8(294, 0.08), 90);
+  setTimeout(() => bit8(247, 0.08), 180);
+  setTimeout(() => bit8(220, 0.2), 270);
+  setTimeout(() => bit8Noise(0.15, 0.1), 300);
+}
+
+// 大赢！任天堂风格胜利曲
+function soundWin() {
+  const melody = [
+    [523, 0], [523, 100], [523, 200], [415, 300],
+    [523, 400], [659, 500], [784, 650]
+  ];
+  melody.forEach(([f, t]) => setTimeout(() => bit8(f, 0.15, 0.22), t));
+  setTimeout(() => bit8Noise(0.08, 0.1), 650);
+}
+
+// 选箱子鼓点：8-bit打击音
+function soundDrum() {
+  bit8Noise(0.08, 0.25);
+  setTimeout(() => bit8(110, 0.1, 0.15), 40);
+}
+
+// 26个奖金值
+const ALL_VALUES = [
+  0.01, 1, 5, 10, 25, 50, 100, 200, 300, 400,
+  500, 750, 1000, 2500, 5000, 10000, 25000, 50000,
+  75000, 100000, 200000, 300000, 400000, 500000, 750000, 1000000
+];
+
+// 每轮开箱数量（共9轮）
+const ROUNDS_PLAN = [6, 5, 4, 3, 2, 1, 1, 1, 1];
+
+// 游戏状态
+let boxes = [];
+let selectedBoxId = null;
+let currentRound = 0;
+let toOpenThisRound = 0;
+let openedThisRound = 0;
+let gamePhase = 'select'; // 'select' | 'open' | 'offer' | 'done'
+let currentOffer = 0;
+let isFinalRound = false;
+
+// ── 工具 ──────────────────────────────────────────
+function fmt(v) {
+  if (v < 1) return '$0.01';
+  return '$' + Math.round(v).toLocaleString('en-US');
+}
+
+function isHigh(v) { return v >= 1000; }
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function calcOffer() {
+  // 包含自己箱子在内的所有未开值的平均
+  const vals = boxes.filter(b => !b.opened).map(b => b.value);
+  if (!vals.length) return 0;
+  const avg = vals.reduce((a, c) => a + c, 0) / vals.length;
+  const pct = ([0.18, 0.30, 0.45, 0.58, 0.72, 0.83, 0.90, 0.95, 1.00])[currentRound] ?? 1.0;
+  const noise = 0.92 + Math.random() * 0.16;
+  return Math.max(1, Math.round(avg * pct * noise / 100) * 100);
+}
+
+// ── 初始化 ────────────────────────────────────────
+function startGame() {
+  document.getElementById('intro').style.display = 'none';
+  document.getElementById('main-game').style.display = 'block';
+  initGame();
+}
+
+function initGame() {
+  boxes = shuffle(ALL_VALUES).map((v, i) => ({ id: i + 1, value: v, opened: false, selected: false }));
+  selectedBoxId = null;
+  currentRound = 0;
+  toOpenThisRound = 0;
+  openedThisRound = 0;
+  gamePhase = 'select';
+  isFinalRound = false;
+  currentOffer = 0;
+
+  // 每次重置都重新绑定按钮，避免旧事件残留
+  document.getElementById('btn-deal').onclick = onDeal;
+  document.getElementById('btn-nodeal').onclick = onNoDeal;
+
+  document.getElementById('offer-panel').classList.remove('visible');
+  document.getElementById('result-panel').classList.remove('visible');
+  document.getElementById('log').innerHTML = '';
+
+  renderMoneyBoard();
+  renderBoxes();
+  setRoundInfo('选择阶段');
+  setMessage('请从26个箱子中选一个属于你的！');
+  document.getElementById('boxes-title').textContent = '📦 选择你的箱子';
+}
+
+// ── 奖金板 ────────────────────────────────────────
+function renderMoneyBoard() {
+  const openedVals = new Set(boxes.filter(b => b.opened).map(b => b.value));
+  const low  = ALL_VALUES.filter(v => v < 1000).sort((a, b) => a - b);
+  const high = ALL_VALUES.filter(v => v >= 1000).sort((a, b) => a - b);
+  const board = document.getElementById('money-board');
+  board.innerHTML = '';
+  [...low, ...high].forEach(v => {
+    const el = document.createElement('div');
+    el.className = 'money-item ' + (v < 1000 ? 'low' : 'high') + (openedVals.has(v) ? ' eliminated' : '');
+    el.id = 'mv-' + v;
+    el.textContent = fmt(v);
+    board.appendChild(el);
+  });
+}
+
+// ── 箱子网格 ──────────────────────────────────────
+function renderBoxes() {
+  const grid = document.getElementById('boxes-grid');
+  grid.innerHTML = '';
+  boxes.forEach(b => {
+    const el = document.createElement('div');
+    el.id = 'box-' + b.id;
+    if (b.opened) {
+      el.className = 'box opened';
+      el.innerHTML = `<span style="font-size:0.65rem;color:#444">${fmt(b.value)}</span>`;
+    } else if (b.selected) {
+      el.className = 'box selected';
+      el.innerHTML = `<span class="box-num">${b.id}</span><span class="selected-tag">YOUR BOX</span>`;
+    } else {
+      el.className = 'box available';
+      el.innerHTML = `<span class="box-num">${b.id}</span>`;
+      if (gamePhase === 'select') {
+        el.addEventListener('click', () => onSelectMyBox(b.id));
+      } else if (gamePhase === 'open') {
+        el.addEventListener('click', () => onOpenBox(b.id));
+      }
+    }
+    grid.appendChild(el);
+  });
+}
+
+// ── 选自己的箱子 ──────────────────────────────────
+function onSelectMyBox(id) {
+  if (gamePhase !== 'select') return;
+  soundDrum();
+  selectedBoxId = id;
+  boxes.find(b => b.id === id).selected = true;
+  gamePhase = 'open';
+  currentRound = 0;
+  toOpenThisRound = ROUNDS_PLAN[0];
+  openedThisRound = 0;
+
+  addLog(`你选择了 <span class="log-gold">${id}号箱子</span> 作为自己的！`);
+  setRoundInfo('第1轮');
+  setMessage(`✅ ${id}号箱子是你的！请再打开 ${toOpenThisRound} 个箱子`);
+  document.getElementById('boxes-title').textContent = `📦 第1轮：请打开 ${toOpenThisRound} 个箱子`;
+  renderBoxes();
+}
+
+// ── 打开一个箱子 ──────────────────────────────────
+function onOpenBox(id) {
+  if (gamePhase !== 'open') return;
+  const b = boxes.find(x => x.id === id);
+  if (!b || b.opened || b.selected) return;
+
+  b.opened = true;
+  openedThisRound++;
+
+  // 音效
+  if (isHigh(b.value)) soundOpenHigh(); else soundOpenLow();
+
+  // 奖金板闪烁
+  const mvEl = document.getElementById('mv-' + b.value);
+  if (mvEl) {
+    mvEl.classList.add(isHigh(b.value) ? 'flash-bad' : 'flash-good');
+    setTimeout(() => {
+      mvEl.classList.add('eliminated');
+      mvEl.classList.remove('flash-bad', 'flash-good');
+    }, 600);
+  }
+
+  // 更新箱子外观（直接修改DOM，不重渲染全部）
+  const boxEl = document.getElementById('box-' + id);
+  if (boxEl) {
+    boxEl.className = 'box opened';
+    boxEl.innerHTML = `<span style="font-size:0.65rem;color:#555">${fmt(b.value)}</span>`;
+  }
+
+  addLog(`${isHigh(b.value) ? '😬' : '😊'} ${id}号箱子：<span class="${isHigh(b.value) ? 'log-red' : 'log-green'}">${fmt(b.value)}</span>`);
+
+  const stillNeeded = toOpenThisRound - openedThisRound;
+  if (stillNeeded > 0) {
+    setMessage(`还需要打开 ${stillNeeded} 个箱子`);
+    return;
+  }
+
+  // 本轮开完，判断下一步
+  const unopened = boxes.filter(x => !x.opened && !x.selected);
+
+  if (unopened.length === 0) {
+    // 无箱可开，直接揭晓
+    setTimeout(showFinalResult, 500);
+  } else if (isFinalRound) {
+    // 最终轮开完最后一个 → 最终报价
+    setTimeout(showFinalOffer, 500);
+  } else {
+    setTimeout(showOffer, 500);
+  }
+}
+
+// ── 普通报价 ──────────────────────────────────────
+function showOffer() {
+  soundPhone();
+  const remaining = boxes.filter(b => !b.opened);
+  const avg = remaining.reduce((a, b) => a + b.value, 0) / remaining.length;
+  currentOffer = calcOffer();
+  gamePhase = 'offer';
+
+  document.getElementById('offer-amount').textContent = fmt(currentOffer);
+  document.getElementById('offer-context').textContent =
+    `剩余 ${remaining.length} 个箱子，平均值 ${fmt(Math.round(avg))}`;
+  document.getElementById('offer-panel').classList.add('visible');
+  setMessage('📞 庄家来电话了！');
+  addLog(`📞 庄家报价：<span class="log-gold">${fmt(currentOffer)}</span>`);
+}
+
+// ── 最终报价 ──────────────────────────────────────
+function showFinalOffer() {
+  soundPhone();
+  const myBox = boxes.find(b => b.id === selectedBoxId);
+  const unopened = boxes.filter(b => !b.opened && !b.selected);
+  // 剩2个值：myBox.value 和 unopened[0].value
+  const otherVal = unopened.length > 0 ? unopened[0].value : 0;
+  const avgFinal = (myBox.value + otherVal) / 2;
+  currentOffer = Math.round(avgFinal * (0.85 + Math.random() * 0.15));
+  currentOffer = Math.max(1, Math.round(currentOffer / 100) * 100);
+  gamePhase = 'offer';
+
+  document.getElementById('offer-amount').textContent = fmt(currentOffer);
+  document.getElementById('offer-context').textContent = '这是庄家的最终报价！';
+  document.getElementById('offer-panel').classList.add('visible');
+  setMessage('📞 庄家最终报价！Deal or No Deal？');
+  addLog(`📞 庄家最终报价：<span class="log-gold">${fmt(currentOffer)}</span>`);
+}
+
+// ── 接受报价 ──────────────────────────────────────
+function onDeal() {
+  if (gamePhase !== 'offer') return;
+  soundDeal();
+  document.getElementById('offer-panel').classList.remove('visible');
+  gamePhase = 'done';
+
+  const myBox = boxes.find(b => b.id === selectedBoxId);
+  const better = myBox.value > currentOffer;
+
+  addLog(`✅ 成交！拿走 <span class="log-gold">${fmt(currentOffer)}</span>`);
+  addLog(`📦 你的${selectedBoxId}号箱子里是：<span class="${isHigh(myBox.value) ? 'log-green' : 'log-red'}">${fmt(myBox.value)}</span>`);
+
+  showResult(
+    better ? '😮 可惜！' : '🎉 恭喜！',
+    fmt(currentOffer),
+    `你的箱子里是 ${fmt(myBox.value)}，${better ? '你的箱子钱更多……' : '庄家报价更高，明智！'}`
+  );
+}
+
+// ── 拒绝报价 ──────────────────────────────────────
+function onNoDeal() {
+  if (gamePhase !== 'offer') return;
+  soundNoDeal();
+  document.getElementById('offer-panel').classList.remove('visible');
+
+  if (isFinalRound) {
+    // 最终轮拒绝 → 询问是否交换箱子
+    addLog(`❌ No Deal！`);
+    showSwapPrompt();
+    return;
+  }
+
+  addLog(`❌ No Deal！继续！`);
+  currentRound++;
+
+  const unopened = boxes.filter(b => !b.opened && !b.selected);
+
+  if (currentRound >= ROUNDS_PLAN.length || unopened.length <= 1) {
+    // 进入最终轮：剩1个箱子 + 自己的箱子，直接给最终报价
+    isFinalRound = true;
+    setRoundInfo('最终轮');
+    setMessage('只剩最后两个箱子了！等待庄家最终报价……');
+    setTimeout(showFinalOffer, 500);
+  } else {
+    toOpenThisRound = Math.min(ROUNDS_PLAN[currentRound], unopened.length);
+    openedThisRound = 0;
+    gamePhase = 'open';
+    setRoundInfo(`第${currentRound + 1}轮`);
+    setMessage(`请打开 ${toOpenThisRound} 个箱子`);
+    document.getElementById('boxes-title').textContent =
+      `📦 第${currentRound + 1}轮：请打开 ${toOpenThisRound} 个箱子`;
+    renderBoxes();
+  }
+}
+
+// ── 交换提示 ──────────────────────────────────────
+function showSwapPrompt() {
+  const lastBox = boxes.find(b => !b.opened && !b.selected);
+  if (!lastBox) { showFinalResult(); return; }
+
+  gamePhase = 'done'; // 防止其他点击干扰
+  setRoundInfo('最终决定');
+  setMessage(`是否用你的 ${selectedBoxId}号 与 ${lastBox.id}号 交换？`);
+  addLog(`🤔 是否与 <span class="log-gold">${lastBox.id}号箱子</span> 交换？`);
+
+  // 用一个专属的交换UI，不复用报价面板按钮
+  const offerPanel = document.getElementById('offer-panel');
+  offerPanel.innerHTML = `
+    <div class="banker-label">🔄 最终交换</div>
+    <div class="offer-amount" style="font-size:1.8rem">你的 ${selectedBoxId}号 ↔ ${lastBox.id}号</div>
+    <div class="offer-context">选择交换或保留你原来的箱子，然后揭晓结果</div>
+    <div class="btn-row">
+      <button class="btn btn-deal" onclick="onSwap(true)">🔄 交换</button>
+      <button class="btn btn-nodeal" onclick="onSwap(false)">🙅 不换</button>
+    </div>
+  `;
+  offerPanel.classList.add('visible');
+}
+
+function onSwap(doSwap) {
+  const lastBox = boxes.find(b => !b.opened && !b.selected);
+  const oldId = selectedBoxId;
+
+  if (doSwap && lastBox) {
+    selectedBoxId = lastBox.id;
+    addLog(`🔄 交换！你把 ${oldId}号换成了 <span class="log-gold">${selectedBoxId}号箱子</span>`);
+  } else {
+    addLog(`🙅 不换，保留 <span class="log-gold">${selectedBoxId}号箱子</span>`);
+  }
+
+  // 还原报价面板内容，隐藏它
+  document.getElementById('offer-panel').innerHTML = `
+    <div class="banker-label">📞 庄家报价</div>
+    <div class="offer-amount" id="offer-amount">$0</div>
+    <div class="offer-context" id="offer-context"></div>
+    <div class="btn-row">
+      <button class="btn btn-deal" id="btn-deal">✅ DEAL</button>
+      <button class="btn btn-nodeal" id="btn-nodeal">❌ NO DEAL</button>
+    </div>
+  `;
+  document.getElementById('offer-panel').classList.remove('visible');
+  document.getElementById('btn-deal').onclick = onDeal;
+  document.getElementById('btn-nodeal').onclick = onNoDeal;
+
+  // 揭晓最终选择的箱子
+  const myBox = boxes.find(b => b.id === selectedBoxId);
+  addLog(`📦 你的${selectedBoxId}号箱子里是：<span class="log-gold">${fmt(myBox.value)}</span>`);
+  showResult(
+    myBox.value >= 100000 ? '🎉 大赢家！' : '😅 结果揭晓',
+    fmt(myBox.value),
+    `庄家最后报价 ${fmt(currentOffer)}，你选择拒绝并${doSwap ? '交换' : '保留'}了箱子！`
+  );
+}
+
+// ── 最终揭晓（No Deal到底，无报价情况）──────────────
+function showFinalResult() {
+  gamePhase = 'done';
+  const myBox = boxes.find(b => b.id === selectedBoxId);
+  addLog(`📦 你的${selectedBoxId}号箱子里是：<span class="log-gold">${fmt(myBox.value)}</span>`);
+  showResult(
+    myBox.value >= 100000 ? '🎉 大赢家！' : '😅 结果揭晓',
+    fmt(myBox.value),
+    '你一路 No Deal 到底！'
+  );
+}
+
+function showResult(title, amount, sub) {
+  if (title.includes('大赢家') || title.includes('恭喜')) soundWin();
+  else soundNoDeal();
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-amount').textContent = amount;
+  document.getElementById('result-sub').textContent = sub;
+  document.getElementById('result-panel').classList.add('visible');
+}
+
+// ── 重新开始 ──────────────────────────────────────
+function restartGame() {
+  document.getElementById('result-panel').classList.remove('visible');
+  document.getElementById('offer-panel').classList.remove('visible');
+  initGame();
+}
+
+function setRoundInfo(t) { document.getElementById('round-info').textContent = t; }
+function setMessage(t)   { document.getElementById('message').textContent = t; }
+
+function addLog(html) {
+  const log = document.getElementById('log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = html;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>
